@@ -10,15 +10,9 @@ public class TextDrawer : MonoBehaviour
 
 	struct TextCacheKey : IEquatable<TextCacheKey>
 	{
-		public TextCacheKey(string text, float fontSize)
-		{
-			_text = text;
-			_fontSize = fontSize;
-		}
-
 		public bool Equals(TextCacheKey other)
 		{
-			return string.Equals(_text, other._text) && _fontSize.Equals(other._fontSize);
+			return string.Equals(_text, other._text) && _fontSize.Equals(other._fontSize) && _fontAsset.Equals(other._fontAsset);
 		}
 
 		public override bool Equals(object obj)
@@ -31,7 +25,10 @@ public class TextDrawer : MonoBehaviour
 		{
 			unchecked
 			{
-				return ((_text != null ? _text.GetHashCode() : 0) * 397) ^ _fontSize.GetHashCode();
+				var hashCode = _text.GetHashCode();
+				hashCode = (hashCode * 397) ^ _fontSize.GetHashCode();
+				hashCode = (hashCode * 397) ^ _fontAsset.GetHashCode();
+				return hashCode;
 			}
 		}
 
@@ -45,8 +42,16 @@ public class TextDrawer : MonoBehaviour
 			return !left.Equals(right);
 		}
 
+		public TextCacheKey(string text, float fontSize, TMP_FontAsset font)
+		{
+			_text = text;
+			_fontSize = fontSize;
+			_fontAsset = font;
+		}
+
 		private readonly string _text;
 		private readonly float _fontSize;
+		private readonly TMP_FontAsset _fontAsset;
 	}
 
 	private readonly LRUDictionary<TextCacheKey, Mesh> _textMeshCache = new LRUDictionary<TextCacheKey, Mesh>(400);
@@ -57,7 +62,7 @@ public class TextDrawer : MonoBehaviour
 	private static bool _instanced;
 	private int _materialTextColorPropertyId;
 	private Color _materialPropertyBlockLastColorSet = Color.white;
-	private Material _fontMaterial;
+	private TMP_FontAsset _defaultFontAsset;
 
 	/// <summary>
 	///  Draws a 3D text mesh. This works in immediate mode, so you need to call this every frame you want to draw it.
@@ -69,6 +74,11 @@ public class TextDrawer : MonoBehaviour
 	public static void DrawText(string text, float fontSize, Color color, Matrix4x4 mat)
 	{
 		Instance.DrawTextInternal(text,fontSize,color,mat);
+	}
+	
+	public static void DrawText(string text, float fontSize, Color color, Matrix4x4 mat, TMP_FontAsset font)
+	{
+		Instance.DrawTextInternal(text,fontSize,color,mat,font);
 	}
 	
 	private static TextDrawer Instance
@@ -95,12 +105,12 @@ public class TextDrawer : MonoBehaviour
 		_textMeshPro.GetComponent<MeshRenderer>().enabled = false;
 		_materialPropertyBlock = new MaterialPropertyBlock();
 		_materialTextColorPropertyId = Shader.PropertyToID("_FaceColor");
-		_fontMaterial = _textMeshPro.fontMaterial;
+		_defaultFontAsset = _textMeshPro.font;
 	}
 
-	Mesh GenerateMeshForText(string text, float fontSize)
+	Mesh GenerateMeshForText(string text, float fontSize, TMP_FontAsset font)
 	{
-		var textCacheKey = new TextCacheKey(text,fontSize);
+		var textCacheKey = new TextCacheKey(text,fontSize,font);
 
 		Mesh cachedMesh;
 		if (_textMeshCache.TryGetValue(textCacheKey, out cachedMesh))
@@ -110,6 +120,13 @@ public class TextDrawer : MonoBehaviour
 		
 		_textMeshPro.text = text;
 		_textMeshPro.fontSize = fontSize;
+		
+		if (font != _textMeshPro.font)
+		{
+			_textMeshPro.font = font;
+			_textMeshPro.UpdateFontAsset();
+		}
+		
 		_textMeshPro.ClearMesh();
 		_textMeshPro.ForceMeshUpdate();
 		var textMesh = Instantiate(_textMeshPro.mesh);
@@ -139,14 +156,20 @@ public class TextDrawer : MonoBehaviour
 		get { return _textMeshCache.Capacity; }
 	}
 
-	void DrawTextInternal(string text, float fontSize, Color color, Matrix4x4 mat)
+	private void DrawTextInternal(string text, float fontSize, Color color, Matrix4x4 mat, TMP_FontAsset font = null)
 	{
 		if (_materialPropertyBlockLastColorSet != color)
 		{
 			_materialPropertyBlockLastColorSet = color;
 			_materialPropertyBlock.SetColor(_materialTextColorPropertyId,color);
 		}
+		if (font == null) font = _defaultFontAsset;
 		
-		Graphics.DrawMesh(GenerateMeshForText(text,fontSize),mat,_fontMaterial,0,null,0,_materialPropertyBlock);
+		//Since TMP generates meshes that, by default, face the -z direction, we need to rotate it by 180 degrees in the y axis
+		//Rotating by 180 degrees in the y axis is equivalent to negate the scale in the x and z axis
+		mat.m00 = -mat.m00;
+		mat.m22 = -mat.m22;
+		
+		Graphics.DrawMesh(GenerateMeshForText(text,fontSize,font),mat,font.material,0,null,0,_materialPropertyBlock);
 	}
 }

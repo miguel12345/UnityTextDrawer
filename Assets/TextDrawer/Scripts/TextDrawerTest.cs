@@ -1,11 +1,11 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class TextDrawerTest : MonoBehaviour
 {
 
+	public TMP_FontAsset[] Fonts;
 	public int Amount = 5;
 	public float SphereRadius = 2f;
 	public float TextSize = 10f;
@@ -17,10 +17,10 @@ public class TextDrawerTest : MonoBehaviour
 
 	public void SetAmount(float amount)
 	{
-		this.Amount = (int)amount;
+		Amount = (int)amount;
 	}
 
-	private List<string> letters = new List<string>()
+	private readonly List<string> _letters = new List<string>()
 	{
 		"1",
 		"2",
@@ -41,14 +41,14 @@ public class TextDrawerTest : MonoBehaviour
 		"H",
 	};
 
-	static Color redColor = Color.red;
-	static Color greenColor = Color.green;
-	static Color blueColor = Color.blue;
+	private static readonly Color RedColor = Color.red;
+	private static readonly Color GreenColor = Color.green;
+	private static readonly Color BlueColor = Color.blue;
 	
 	private void Update()
 	{
 		var currentPos = MinimumPosition;
-		for (int i = 0; i < Amount; i++)
+		for (var i = 0; i < Amount; i++)
 		{
 			var pos = currentPos;
 
@@ -56,13 +56,13 @@ public class TextDrawerTest : MonoBehaviour
 
 			var lerpFactor = Mathf.Sin(Time.time + i);
 
-			var color = Color.Lerp(greenColor, blueColor, lerpFactor);
+			var color = Color.Lerp(GreenColor, BlueColor, lerpFactor);
 				
 			if (lerpFactor < 0.0f)
 			{
-				color = Color.Lerp(greenColor, redColor, -lerpFactor);
+				color = Color.Lerp(GreenColor, RedColor, -lerpFactor);
 			}
-			TextDrawer.DrawText(letters[i%letters.Count],TextSize,color,Matrix4x4.TRS(pos ,Quaternion.LookRotation(-Vector3.up,Vector3.forward),Vector3.one ));
+			TextDrawer.DrawText(_letters[i%_letters.Count],TextSize,color,Matrix4x4.TRS(pos ,Quaternion.LookRotation(Vector3.up,Vector3.forward),Vector3.one ),Fonts[i%Fonts.Length]);
 
 			currentPos.x += PositionIncrement.x;
 			
