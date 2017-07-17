@@ -22,6 +22,12 @@ You know those times when you just want to draw a text on the screen for a short
 
 NOTE: By default, TextDrawer's internal cache holds 400 items at the same time. If you are planning on drawing more than 400 different strings per frame, please increase the cache size through `TextDrawer.CacheCapacity`. 
 
+## Instructions
++ Import the `packages/UnityTextDrawer.unitypackage` to your project
++ If you already have TextMeshPro, deselect it from the import window
++ Add a line of code! (see example below)
++ If you want to use custom fonts, just use `TextMeshPro`'s Create Font asset feature and pass in the resulting font asset to the draw method
+
 ## Example
 
 ```CSharp
