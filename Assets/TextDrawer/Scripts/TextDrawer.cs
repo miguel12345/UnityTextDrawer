@@ -164,11 +164,13 @@ public class TextDrawer : MonoBehaviour
 			_materialPropertyBlock.SetColor(_materialTextColorPropertyId,color);
 		}
 		if (font == null) font = _defaultFontAsset;
+
 		
 		//Since TMP generates meshes that, by default, face the -z direction, we need to rotate it by 180 degrees in the y axis
-		//Rotating by 180 degrees in the y axis is equivalent to negate the scale in the x and z axis
 		mat.m00 = -mat.m00;
 		mat.m22 = -mat.m22;
+		mat.m02 = -mat.m02;
+		mat.m20 = -mat.m20;
 		
 		Graphics.DrawMesh(GenerateMeshForText(text,fontSize,font),mat,font.material,0,null,0,_materialPropertyBlock);
 	}
