@@ -53,6 +53,19 @@ public class TextDrawer : MonoBehaviour
 		private readonly float _fontSize;
 		private readonly TMP_FontAsset _fontAsset;
 	}
+	
+	public enum TextPivot
+	{
+		BottomLeft,
+		BottomCenter,
+		BottomRight,
+		CenterLeft,
+		Center,
+		CenterRight,
+		TopLeft,
+		TopCenter,
+		TopRight
+	}
 
 	private readonly LRUDictionary<TextCacheKey, Mesh> _textMeshCache = new LRUDictionary<TextCacheKey, Mesh>(400);
 	private TextMeshPro _textMeshPro;
@@ -71,14 +84,15 @@ public class TextDrawer : MonoBehaviour
 	/// <param name="fontSize">Font size</param>
 	/// <param name="color">Text color</param>
 	/// <param name="mat">TRS matrix in world space</param>
-	public static void DrawText(string text, float fontSize, Color color, Matrix4x4 mat)
+	/// <param name="pivot">Pivot point</param>
+	public static void DrawText(string text, float fontSize, Color color, Matrix4x4 mat, TextPivot pivot = TextPivot.Center)
 	{
-		Instance.DrawTextInternal(text,fontSize,color,mat);
+		Instance.DrawTextInternal(text,fontSize,color,mat,null,pivot);
 	}
 	
-	public static void DrawText(string text, float fontSize, Color color, Matrix4x4 mat, TMP_FontAsset font)
+	public static void DrawText(string text, float fontSize, Color color, Matrix4x4 mat, TMP_FontAsset font, TextPivot pivot = TextPivot.Center)
 	{
-		Instance.DrawTextInternal(text,fontSize,color,mat,font);
+		Instance.DrawTextInternal(text,fontSize,color,mat,font,pivot);
 	}
 	
 	private static TextDrawer Instance
@@ -156,7 +170,7 @@ public class TextDrawer : MonoBehaviour
 		get { return _textMeshCache.Capacity; }
 	}
 
-	private void DrawTextInternal(string text, float fontSize, Color color, Matrix4x4 mat, TMP_FontAsset font = null)
+	private void DrawTextInternal(string text, float fontSize, Color color, Matrix4x4 mat, TMP_FontAsset font = null, TextPivot pivot = TextPivot.Center)
 	{
 		if (_materialPropertyBlockLastColorSet != color)
 		{
@@ -167,11 +181,87 @@ public class TextDrawer : MonoBehaviour
 
 		
 		//Since TMP generates meshes that, by default, face the -z direction, we need to rotate it by 180 degrees in the y axis
-		mat.m00 = -mat.m00;
-		mat.m22 = -mat.m22;
-		mat.m02 = -mat.m02;
-		mat.m20 = -mat.m20;
+		RotateMatrix180DegreesInYAxis(ref mat);
+
+		var textMesh = GenerateMeshForText(text,fontSize,font);
+
+		ApplyTextAlignmentToTRSMatrix(ref mat, pivot,textMesh.bounds);
 		
-		Graphics.DrawMesh(GenerateMeshForText(text,fontSize,font),mat,font.material,0,null,0,_materialPropertyBlock);
+		Graphics.DrawMesh(textMesh,mat,font.material,0,null,0,_materialPropertyBlock);
+	}
+
+	private void ApplyTextAlignmentToTRSMatrix(ref Matrix4x4 matrix, TextPivot pivot,Bounds textBounds)
+	{
+		var textHalfHeight = textBounds.extents.y;
+		var textHalfWidth = textBounds.extents.x;
+		
+		if (pivot == TextPivot.BottomLeft)
+		{
+			TranslateMatrixInXY(ref matrix,textHalfWidth,textHalfHeight);
+		}
+		else if (pivot == TextPivot.BottomCenter)
+		{
+			TranslateMatrixInYAxis(ref matrix,textHalfHeight);
+		}
+		else if (pivot == TextPivot.BottomRight)
+		{
+			TranslateMatrixInXY(ref matrix,-textHalfWidth,textHalfHeight);
+		}
+		else if (pivot == TextPivot.CenterLeft)
+		{
+			TranslateMatrixInXAxis(ref matrix,textHalfWidth);
+		}
+		else if (pivot == TextPivot.CenterRight)
+		{
+			TranslateMatrixInXAxis(ref matrix,-textHalfWidth);
+		}
+		else if (pivot == TextPivot.TopLeft)
+		{
+			TranslateMatrixInXY(ref matrix,textHalfWidth,-textHalfHeight);
+		}
+		else if (pivot == TextPivot.TopCenter)
+		{
+			TranslateMatrixInYAxis(ref matrix,-textHalfHeight);
+		}
+		else if (pivot == TextPivot.TopRight)
+		{
+			TranslateMatrixInXY(ref matrix,-textHalfWidth,-textHalfHeight);
+		}
+	}
+
+	private void RotateMatrix180DegreesInYAxis(ref Matrix4x4 matrix)
+	{
+		//Same as doing -> matrix *= Matrix4x4.Rotate(Quaternion.AngleAxis(180f, Vector3.up));
+		matrix.m00 = -matrix.m00;
+		matrix.m10 = -matrix.m10;
+		matrix.m20 = -matrix.m20;
+		
+		matrix.m02 = -matrix.m02;
+		matrix.m12 = -matrix.m12;
+		matrix.m22 = -matrix.m22;
+	}
+
+	private void TranslateMatrixInYAxis(ref Matrix4x4 matrix, float translation)
+	{
+		//Same as doing -> matrix = matrix * Matrix4x4.Translate(new Vector3(0f,translation,0f))
+		matrix.m03 = matrix.m03 + matrix.m01*translation;
+		matrix.m13 = matrix.m13 + matrix.m11*translation;
+		matrix.m23 = matrix.m23 + matrix.m21*translation;
+	}
+	
+	private void TranslateMatrixInXAxis(ref Matrix4x4 matrix, float translation)
+	{
+		//Same as doing -> matrix = matrix * Matrix4x4.Translate(new Vector3(translation,0f,0f))
+		matrix.m03 = matrix.m03 + matrix.m00*translation;
+		matrix.m13 = matrix.m13 + matrix.m10*translation;
+		matrix.m23 = matrix.m23 + matrix.m20*translation;
+	}
+	
+	private void TranslateMatrixInXY(ref Matrix4x4 matrix, float xTranslation, float yTranslation)
+	{
+		//Same as doing -> matrix = matrix * Matrix4x4.Translate(new Vector3(xTranslation,yTranslation,0f))
+		matrix.m03 = matrix.m03  + matrix.m01*yTranslation + matrix.m00*xTranslation;
+		matrix.m13 = matrix.m13  + matrix.m11*yTranslation + matrix.m10*xTranslation;
+		matrix.m23 = matrix.m23  + matrix.m21*yTranslation + matrix.m20*xTranslation;
 	}
 }

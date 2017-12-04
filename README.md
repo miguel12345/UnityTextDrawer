@@ -10,6 +10,8 @@ Draw beautiful 3D texts with one line of code. It's like `Graphics.DrawMesh`, bu
 + Super Fast! 
 + 0 GC alloc once the cache is filled
 + Supports outlining, bevel, glow and all other [TextMeshPro](https://www.assetstore.unity3d.com/en/#!/content/84126) features
++ *NEW*: Custom pivots
+  ![](text_drawer_pivot.gif)
 
 ## The problem
 You know those times when you just want to draw a text on the screen for a short duration, or you want to draw multiple similar texts, but you don't want to go through the hassle of creating/updating/removing game objecs and mono behaviours for such a simple purpose?
